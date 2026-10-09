@@ -1,23 +1,33 @@
 name: build
-on: [workflow_dispatch, push]
+on:
+  push:
+  workflow_dispatch:
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Unzip
+        run: unzip -q krypton-fixed.zip -d proj
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 21
-      - run: |
-          ls
-          Z=$(ls SKIBIDI-MERGED-SRCv*-full.zip | sort -V | tail -1)
-          echo "Dung file: $Z"
-          unzip -q "$Z"
-          cd SKIBIDI-MERGED-v4
-          chmod +x gradlew
-          ./gradlew build
-      - uses: actions/upload-artifact@v4
+      - uses: gradle/actions/setup-gradle@v4
         with:
-          name: skibidi-debug
-          path: SKIBIDI-MERGED-v4/build/libs/*.jar
+          gradle-version: 8.14.3
+      - name: Build
+        working-directory: proj
+        run: gradle build --no-daemon --stacktrace 2>&1 | tee build.log
+      - name: Upload log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: proj/build.log
+      - name: Upload jar
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: krypton-jar
+          path: proj/build/libs/*.jar
